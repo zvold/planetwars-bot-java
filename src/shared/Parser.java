@@ -1,5 +1,6 @@
 package shared;
 
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -22,7 +23,7 @@ public class Parser {
     int     _planetId;
     int     _fleetId;
     
-    Parser(String from) { 
+    public Parser(String from) { 
         _state = from;
         _start = 0;
         _end = _state.indexOf('\n');
@@ -55,6 +56,15 @@ public class Parser {
         return true;
     }
     
+    private void shiftMatchers() {
+        _start = (_end == _state.length()) ? _end : _end + 1;
+        _end = _state.indexOf('\n', _start);
+        _end = _end == -1 ? _state.length() : _end;
+        
+        _planetMatcher.region(_start, _end);
+        _fleetMatcher.region(_start, _end);
+    }
+    
     public Object next() {
         Object ret = null;
         switch (_kind) {
@@ -67,19 +77,59 @@ public class Parser {
             default:
                 break;
         }
-
-        _start = (_end == _state.length()) ? _end : _end + 1;
-        _end = _state.indexOf('\n', _start);
-        _end = _end == -1 ? _state.length() : _end;
-        
-        _planetMatcher.region(_start, _end);
-        _fleetMatcher.region(_start, _end);
-        
+        shiftMatchers();
         return ret;
     }
 
     public Kind kind() {
         return _kind;
+    }
+
+    public Planet updatePlanet(ArrayList<Planet> _planets) {
+        Planet planet;
+        if (_planetId < _planets.size()) {
+            planet = _planets.get(_planetId);
+            assert(planet != null) : "must have this fleet";
+            planet.update(_planetMatcher);
+        } else {
+            planet = new Planet(_planetId, _planetMatcher);
+            _planets.add(planet);
+        }
+        _planetId++;
+        shiftMatchers();
+        return planet;
+    }
+
+    public Fleet updateFleet(ArrayList<Fleet> _fleets) {
+        Fleet fleet;
+        if (_fleetId < _fleets.size()) {
+            fleet = _fleets.get(_fleetId);
+            assert(fleet != null) : "must have this fleet";
+            fleet.update(_fleetMatcher);
+        } else {
+            fleet = new Fleet(_fleetId, _fleetMatcher);
+            _fleets.add(fleet);
+        }
+        _fleetId++;
+        shiftMatchers();
+        return fleet;
+    }
+    
+    public void setSingleLine(String line) {
+        _state = line;
+        _start = 0;
+        _end = line.length();
+        _planetMatcher = _planetPattern.matcher(line);
+        _fleetMatcher = _fleetPattern.matcher(line);
+    }
+    
+    public void reset() {
+        _planetId = 0;
+        _fleetId = 0;
+    }
+    
+    public void discard() {
+        shiftMatchers();
     }
     
 }
