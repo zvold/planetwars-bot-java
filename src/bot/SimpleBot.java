@@ -15,6 +15,7 @@ import java.util.Set;
 import shared.Planet;
 import shared.Race;
 import shared.Utils;
+import simulate.FirstLoseRecorder;
 import simulate.MinShipsListener;
 import simulate.OwnerChangeListener;
 import simulate.Simulator;
@@ -24,13 +25,15 @@ public class SimpleBot extends BaseBot implements OwnerChangeListener {
 
     public static final int TURNS_EXTRA = 5;
     public static final int TURNS_PREDICT = 50;
+    public static final int EXTRA_SHIPS = 1;
     
     Random _rnd = new Random(System.currentTimeMillis());
     Adjacency _adj;
     Simulator _sim;
     MinShipsListener _minListener;
     boolean _ownerChanged;
-
+    CumulativeCloseness comp; 
+    
     public static void main(String[] args) {
         parseArgs(args);
         SimpleBot bot = new SimpleBot();
@@ -53,15 +56,57 @@ public class SimpleBot extends BaseBot implements OwnerChangeListener {
         _adj.doWork(Utils.timeout() / 2);
         Utils.log("# doTurn() started at " + _timer.totalTime() + " ms total");
 
+        comp = new CumulativeCloseness(_game.planets());
+        
+        defence();
+        attack();
+        reinforce();
+        
+        Utils.log("# doTurn() finished at " + _timer.totalTime() + " ms total");
+    }
+
+    private void reinforce() {
+        // don't spend time for fancy reinforcements when we're losing
+        if (_game.growth(Race.ALLY) < _game.growth(ENEMY))
+            return;
+        for (Planet planet : _game.planets(Race.ALLY)) {
+            _minListener.reset();
+            this.reset();
+            _sim.simulate(planet, TURNS_PREDICT);
+            if (_minListener.ships(Race.ALLY) == Integer.MAX_VALUE || _ownerChanged)
+                continue;
+            int shipsAvail = _minListener.ships(Race.ALLY);
+            
+            for (Planet neigh : _adj.neighbors(planet)) {
+                if (neigh.owner() != Race.ALLY)
+                    continue;
+                
+                Planet enemy = _adj.getNearestNeighbor(planet, Race.ENEMY);
+                if (enemy != null && enemy.distance(planet) < neigh.distance(planet))
+                    continue;
+                
+                if (comp.score(neigh) < comp.score(planet)) {
+                    Utils.log("# " + shipsAvail + " reinforcement went from " + planet);
+                    issueOrder(planet, neigh, shipsAvail);
+                    
+                    // HACK: better not modify knowing that reinforcement() call is the last one
+                    // this decreases number of ships flying back and forth meaninglessly
+                    //planet.setShips(planet.ships() - shipsAvail);
+                    break;
+                }
+            }
+        }
+    }
+
+    private void attack() {
         ArrayList<Planet> attack = new ArrayList<Planet>();
         selectForAttack(_game.planets(NEUTRAL), attack);
         selectForAttack(_game.planets(ENEMY), attack);
+        Collections.sort(attack, comp);
+
         Utils.log("# " + attack.size() + " targets selected at " + _timer.totalTime() + " ms total");
 
-        CumulativeCloseness comp = new CumulativeCloseness(_game.planets());
-
         while (_timer.totalTime() < (Utils.timeout() - 50) && !attack.isEmpty()) {
-            Collections.sort(attack, comp);
             // get best potential planet to attack
             Planet target = attack.get(0);
 
@@ -72,7 +117,10 @@ public class SimpleBot extends BaseBot implements OwnerChangeListener {
                 int totalShips = 0;
                 for (Planet src : sources) {
                     _minListener.reset();
+                    this.reset();
                     _sim.simulate(src, src.distance(target) + 1);
+                    if (_ownerChanged)
+                        continue;
                     totalShips += _minListener.ships(Race.ALLY) != Integer.MAX_VALUE ?
                                   _minListener.ships(Race.ALLY) : 0;
                 }
@@ -84,13 +132,16 @@ public class SimpleBot extends BaseBot implements OwnerChangeListener {
 
                 // TODO: future may be allied, so predict neede ships number more accurately
                 Planet future = _sim.simulate(target, furthestSource + 1);
-                int shipsNeeded = future.ships() + 1;
+                int shipsNeeded = future.ships() + EXTRA_SHIPS;
 
                 if (totalShips != 0 && totalShips >= shipsNeeded) {
                     int shipsSent = 0;
                     for (Planet src : sources) {
                         _minListener.reset();
+                        this.reset();
                         _sim.simulate(src, src.distance(target) + 1);
+                        if (_ownerChanged)
+                            continue;
                         int shipsAvail = _minListener.ships(Race.ALLY) != Integer.MAX_VALUE ?
                                          _minListener.ships(Race.ALLY) : 0;
                         int num = (int)(0.5d + (double)shipsNeeded *
@@ -108,7 +159,84 @@ public class SimpleBot extends BaseBot implements OwnerChangeListener {
             }
             attack.remove(target);
         }
-        Utils.log("# total attack time " + _timer.totalTime() + " ms");
+    }
+
+    private void defence() {
+        Simulator simul = new Simulator();
+        FirstLoseRecorder loseRecorder = new FirstLoseRecorder(Race.ENEMY);
+        simul.addListener(loseRecorder);
+
+        ArrayList<Planet> defence = new ArrayList<Planet>();
+        for (Planet planet : _game.planets(Race.ALLY)) {
+            loseRecorder.reset();
+            Planet future = simul.simulate(planet, TURNS_PREDICT);
+            if (future.owner() == Race.ALLY)
+                continue;
+            if (loseRecorder.lost()) {
+                Utils.log("# " + planet + " is predicted to be lost at " + 
+                                 loseRecorder.turn() + " turn to " +
+                                 loseRecorder.ships() + " ships");
+                defence.add(planet);
+            }
+        }
+        Collections.sort(defence, comp);
+       
+        Utils.log("# " + defence.size() + " defendants selected at " + _timer.totalTime() + " ms total");
+        
+        while (_timer.totalTime() < (Utils.timeout() - 50) && !defence.isEmpty()) {
+            // get best potential planet to attack
+            Planet target = defence.remove(0);
+
+            // simulate to get required ships and turn
+            loseRecorder.reset();
+            Planet future = simul.simulate(target, TURNS_PREDICT);
+            
+            assert(future.owner() != Race.ALLY) : "check future race correctness";
+            assert(loseRecorder.lost()) : "check defence list correctness";
+            
+            int turnBefore = loseRecorder.turn();
+            int shipsNeeded = loseRecorder.ships();
+            
+            // go through all allied neighbors within turnBefore radius and see if they can help
+            int totalShips = 0;
+            for (Planet src : _adj.neighbors(target)) {
+                if (src.distance(target) > turnBefore)
+                    break;
+                _minListener.reset();
+                this.reset();
+                _sim.simulate(src, TURNS_PREDICT);
+                if (_ownerChanged)
+                    continue;
+                totalShips += _minListener.ships(Race.ALLY) != Integer.MAX_VALUE ?
+                              _minListener.ships(Race.ALLY) : 0;
+            }
+            
+            // if we can help, send proportional amounts
+            if (totalShips >= shipsNeeded) {
+                int shipsSent = 0;
+                for (Planet src : _adj.neighbors(target)) {
+                    if (src.distance(target) > turnBefore)
+                        break;
+                    _minListener.reset();
+                    this.reset();
+                    _sim.simulate(src, TURNS_PREDICT);
+                    if (_ownerChanged)
+                        continue;
+                    int shipsAvail = _minListener.ships(Race.ALLY) != Integer.MAX_VALUE ?
+                                     _minListener.ships(Race.ALLY) : 0;
+                    int num = (int)(0.5d + (double)shipsNeeded *
+                                           (double)shipsAvail / (double)totalShips);
+                    num = num > src.ships() ? src.ships() : num;
+                    shipsSent += num;
+                    issueOrder(src, target, num);
+                    src.setShips(src.ships() - num);
+                }
+                Utils.log("# " + target + " receives "
+                               + shipsSent + " rescue ships in "
+                               + turnBefore + " turns");
+            }
+        }
+        
     }
 
     private void selectForAttack(Set<Planet> planets, ArrayList<Planet> attack) {
@@ -165,7 +293,7 @@ public class SimpleBot extends BaseBot implements OwnerChangeListener {
         double score(Planet target) {
             double score = 0;
             for (Planet planet : _planets) {
-                if (planet.owner() == Race.NEUTRAL)
+                if (planet.owner() == Race.NEUTRAL || planet == target)
                     continue;
                 int sign = (planet.owner() == Race.ALLY) ? -1 : 1;
                 score += (double)sign * (double)planet.ships() / (double)planet.distance(target);

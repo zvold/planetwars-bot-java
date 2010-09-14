@@ -47,8 +47,8 @@ public class Simulator {
             if ((sumFleets = sumFleets(turn, ret, ENEMY)) != null)
                 _arriving.add(sumFleets);
             
-            // planet's ships are added to the corresponding fleet
-            _arriving.add(new Fleet(ret.owner()).addShips(ret.ships()));
+            if (ret.owner() == Race.NEUTRAL)
+                _arriving.add(new Fleet(Race.NEUTRAL).addShips(ret.ships()));
             
             if (_arriving.size() > 1) {
                 Collections.sort(_arriving, _comp);
@@ -74,7 +74,10 @@ public class Simulator {
     }
 
     private Fleet sumFleets(int turn, Planet planet, Race owner) {
-        Fleet ret = null;
+        // planet's ships are added to the corresponding fleet
+        Fleet ret = planet.owner() == owner ? 
+                    new Fleet(owner, planet.ships()) : null;
+        
         for (Fleet f : planet.incoming(owner))
             if (f.eta() == turn) {
                 if (ret == null)

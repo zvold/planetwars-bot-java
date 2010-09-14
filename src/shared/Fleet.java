@@ -22,6 +22,11 @@ public class Fleet {
         update(m);
     }
 
+    public Fleet(Race owner, int ships) {
+        this(owner);
+        _ships = ships;
+    }
+
     public void update(Matcher m) {
         _owner  = Race.values()[Integer.parseInt(m.group(1))];
         _ships  = Integer.parseInt(m.group(2));

@@ -71,6 +71,14 @@ public class SimulatorTest {
                                            "F 1 1 15 13 2 1\n" +
                                            "go\n";
     
+    public static final String STATE_BUG2 = "P 1.12251825005 14.3274446064 1 25 1\n" +
+                                            "F 2 14 1 0 7 1\n" +
+                                            "F 2 18 1 0 7 4\n" +
+                                            "F 1 2 21 0 4 1\n" +
+                                            "F 1 5 9 0 4 1\n" +
+                                            "F 1 4 12 0 2 1\n" +
+                                            "go\n";
+    
     @Before
     public void setUp() {
         _record = new RecordingOwnerChangeListener();
@@ -138,6 +146,13 @@ public class SimulatorTest {
         Game game = new Game(STATE_BUG);
         Planet planet = _simulator.simulate(game.planet(13), 8);
         assertEquals("owner doesn't change", game.planet(13).owner(), planet.owner());
+    }
+
+    @Test
+    public void testSimulatorBug2() {
+        Game game = new Game(STATE_BUG2);
+        Planet planet = _simulator.simulate(game.planet(0), 50);
+        assertEquals("owner doesn't change", game.planet(0).owner(), planet.owner());
     }
     
     class RecordingOwnerChangeListener implements OwnerChangeListener {

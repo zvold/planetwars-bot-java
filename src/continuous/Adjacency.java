@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import shared.Planet;
+import shared.Race;
 import shared.Timer;
 
 public class Adjacency extends TimedWork {
@@ -46,6 +47,14 @@ public class Adjacency extends TimedWork {
     public String progress() {
         return _i + "/" + _planets.size();
     }
+
+    public Planet getNearestNeighbor(Planet planet, Race owner) {
+        for (Planet ret : _adj.get(planet))
+            if (ret.owner() == owner)
+                return ret;
+        return null;
+    }
+    
 }
 
 class AdjacencyComparator implements Comparator<Planet> {
@@ -58,7 +67,7 @@ class AdjacencyComparator implements Comparator<Planet> {
     
     @Override
     public int compare(Planet p1, Planet p2) {
-        return (int)((_orig.distSquared(p1) - _orig.distSquared(p2))); 
+        return (int)(1000.0d * (_orig.distSquared(p1) - _orig.distSquared(p2))); 
     }
     
 }
