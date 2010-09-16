@@ -5,6 +5,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
+import bot.BaseBot;
+
 import shared.Planet;
 import shared.Race;
 import shared.Timer;
@@ -16,8 +18,8 @@ public class Adjacency extends TimedWork {
     int _j = 1;
     Map<Planet, ArrayList<Planet>> _adj;
     
-    public Adjacency(ArrayList<Planet> planets, Timer timer) {
-        super(timer);
+    public Adjacency(ArrayList<Planet> planets, Timer timer, BaseBot bot) {
+        super(timer, bot);
         _planets = planets;
         _adj = new HashMap<Planet, ArrayList<Planet>>();
         for (Planet planet : _planets)

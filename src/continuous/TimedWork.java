@@ -1,14 +1,16 @@
 package continuous;
 
 import shared.Timer;
-import shared.Utils;
+import bot.BaseBot;
 
 public abstract class TimedWork {
 
     Timer   _timer;
+    BaseBot _bot;
 
-    public TimedWork(Timer timer) {
+    public TimedWork(Timer timer, BaseBot bot) {
         _timer = timer;
+        _bot = bot;
     }
     
     public void doWork(long limit) {
@@ -17,7 +19,7 @@ public abstract class TimedWork {
         do {
             doWorkChunk();
         } while (!isDone() && _timer.totalTime() < limit);
-        Utils.log("# " + progress());
+        _bot.log("# " + progress());
     }
     
     public abstract void doWorkChunk();

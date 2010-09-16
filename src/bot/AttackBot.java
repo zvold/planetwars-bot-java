@@ -47,13 +47,13 @@ public class AttackBot extends BaseBot implements OwnerChangeListener {
     }
     
     @Override
-    void doTurn() {
+    public void doTurn() {
         if (_adj == null) {
-            _adj = new Adjacency(_game.planets(), _timer);
+            _adj = new Adjacency(_game.planets(), _timer, this);
         }
         // spend up to half the time for adjacency calculation
         _adj.doWork(Utils.timeout() / 2);
-        Utils.log("# doTurn() started at " + _timer.totalTime() + " ms total");
+        log("# doTurn() started at " + _timer.totalTime() + " ms total");
 
         Comparator<Pair<Planet, Integer>> closeness = 
             new CumulativeCloseness<Planet, Integer>(_game.planets(Race.ALLY), TURNS_AHEAD);
@@ -65,14 +65,11 @@ public class AttackBot extends BaseBot implements OwnerChangeListener {
         addPotentialTargets(targets, _game.planets(Race.ENEMY));
         Collections.sort(targets, closeness);
         
-        Utils.log("# " + targets.size() + " targets selected at " + _timer.totalTime() + " ms total");
+        log("# " + targets.size() + " targets selected at " + _timer.totalTime() + " ms total");
         
         // map resource planets available to the safe disposable number of ships
         ArrayList <Pair<Planet, Integer>> sources = new ArrayList<Pair<Planet, Integer> >();
         for (Planet planet : _game.planets(Race.ALLY)) {
-            // reset listeners
-            this.reset(); 
-            _minListener.reset();
             _sim.simulate(planet, TURNS_PREDICT);
             
             // skip not safe sources
@@ -83,7 +80,7 @@ public class AttackBot extends BaseBot implements OwnerChangeListener {
         }
         Collections.sort(sources, new CumulativeDanger<Planet, Integer>(_game.planets(Race.ENEMY), TURNS_AHEAD));
         
-        Utils.log("# " + sources.size() + " sources selected at " + _timer.totalTime() + " ms total");
+        log("# " + sources.size() + " sources selected at " + _timer.totalTime() + " ms total");
         
         while (_timer.totalTime() < (Utils.timeout() - 50) && !targets.isEmpty()) {
             Pair<Planet, Integer> tgtPair = targets.get(0);
@@ -115,16 +112,16 @@ public class AttackBot extends BaseBot implements OwnerChangeListener {
                 sources.remove(rem);
 
             if (shipsNeeded > 0) {
-                Utils.log("# " + shipsNeeded + " ships postponed");
+                log("# " + shipsNeeded + " ships postponed");
                 postponed.add(tgtPair);
             }
 
             targets.remove(tgtPair);
-            Utils.log("# " + (Utils.timeout() - _timer.totalTime()) + " ms remaining");
+            log("# " + (Utils.timeout() - _timer.totalTime()) + " ms remaining");
         }
 
         if (!postponed.isEmpty()) {
-            Utils.log("# fall back to simple expansion strategy");
+            log("# fall back to simple expansion strategy");
             Collections.sort(postponed, closeness);
         }
         
@@ -168,14 +165,14 @@ public class AttackBot extends BaseBot implements OwnerChangeListener {
                                 sources.remove(ships);
                         }
                     }
-                    Utils.log("# " + shipsSent + " ships sent");
+                    log("# " + shipsSent + " ships sent");
                 }
                 
             }
             postponed.remove(tgtPair);
         }
         
-        Utils.log("# " + (Utils.timeout() - _timer.totalTime()) + " ms remaining");
+        log("# " + (Utils.timeout() - _timer.totalTime()) + " ms remaining");
     }
 
     private Pair<Planet, Integer> getSpareShips(ArrayList<Pair<Planet, Integer>> sources, Planet src) {
@@ -212,7 +209,6 @@ public class AttackBot extends BaseBot implements OwnerChangeListener {
     
     private void addPotentialTargets(ArrayList<Pair<Planet, Integer>> targets, Set<Planet> planets) {
         for (Planet planet : planets) {
-            _minListener.reset();
             Planet future = _sim.simulate(planet, TURNS_PREDICT);
             // skip if predicted to be allied
             if (future.owner() == Race.ALLY)

@@ -6,11 +6,14 @@ import shared.Game;
 import shared.Planet;
 import shared.Timer;
 import shared.Utils;
+import utils.ILogger;
+import utils.StdErrLogger;
 
-public abstract class BaseBot {
+public abstract class BaseBot implements ILogger {
 
     Game _game;
     Timer _timer = new Timer();
+    ILogger _logger = new StdErrLogger();
     
     void run() {
         Scanner scanner = new Scanner(System.in);
@@ -27,11 +30,11 @@ public abstract class BaseBot {
                 line = scanner.nextLine();
                 if (line.startsWith("go")) {
                     _game.resetTurn();
-                    Utils.log("# parsing took " + _timer.time() + " ms");
+                    log("# parsing took " + _timer.time() + " ms");
                     parsing = false;
                     doTurn();
                     finishTurn();
-                    Utils.log("# doTurn() took " + _timer.time() + " ms");
+                    log("# doTurn() took " + _timer.time() + " ms");
                 } else {
                     _game.updateOneLine(line);
                 }
@@ -63,7 +66,14 @@ public abstract class BaseBot {
         if (args.length > 1)
             Utils.parseVerbose(args[1]);
     }
+
+    @Override
+    public void log(String msg) {
+        if (!Utils._verbose)
+            return;
+        _logger.log(msg);
+    }
     
-    abstract void doTurn(); 
+    public abstract void doTurn(); 
     
 }

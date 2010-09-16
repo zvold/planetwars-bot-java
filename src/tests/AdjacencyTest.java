@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
+import bot.BaseBot;
+
 import shared.Game;
 import shared.Planet;
 import shared.Timer;
@@ -42,7 +44,12 @@ public class AdjacencyTest {
         Game game = new Game(STATE);
         Timer timer = new Timer();
         timer.start();
-        Adjacency adj = new Adjacency(game.planets(), timer);
+        Adjacency adj = new Adjacency(game.planets(), timer, 
+                                      new BaseBot() {
+                                        @Override
+                                        public void doTurn() {
+                                        }
+                                      });
         Utils.setLogging(false);
         while (!adj.isDone())
             adj.doWork(5);

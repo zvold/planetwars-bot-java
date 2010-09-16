@@ -32,6 +32,8 @@ public class Simulator {
         Fleet sumFleets;
         Planet ret = planet.deepCopy();
         
+        resetAllListeners();
+        
         notifyPossibleMinShips(0, ret.owner(), ret.ships());
         
         for (int turn = 1; turn <= turns; turn++) {
@@ -71,6 +73,15 @@ public class Simulator {
         }
         
         return ret;
+    }
+
+    private void resetAllListeners() {
+        if (_minShipsListeners != null)
+            for (MinShipsListener listener : _minShipsListeners)
+                listener.reset();
+        if (_ownerChangeListeners != null)
+            for (OwnerChangeListener listener : _ownerChangeListeners)
+                listener.reset();
     }
 
     private Fleet sumFleets(int turn, Planet planet, Race owner) {

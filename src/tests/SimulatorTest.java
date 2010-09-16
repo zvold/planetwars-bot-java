@@ -155,6 +155,11 @@ public class SimulatorTest {
         assertEquals("owner doesn't change", game.planet(0).owner(), planet.owner());
     }
     
+    public void log(String msg) {
+        if (Utils._verbose)
+            System.err.println(msg);
+    }
+    
     class RecordingOwnerChangeListener implements OwnerChangeListener {
 
         int _numEvents;
@@ -167,7 +172,7 @@ public class SimulatorTest {
             String message = "Turn " + turn + ": " + 
                              fromShips + ":" + fromRace + " -> " + 
                              toShips + ":" + toRace; 
-            Utils.log(message);
+            log(message);
             _record += message + "\n";
             
             _numEvents++;

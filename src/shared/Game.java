@@ -61,7 +61,7 @@ public class Game {
             switch (_parser.kind()) {
                 case FLEET: {
                     Fleet fleet = (Fleet)_parser.next();
-                    _fleets.add(fleet);
+                    addFleet(fleet);
                     break;
                 }
                 case PLANET: {
@@ -79,6 +79,22 @@ public class Game {
         _isFirstTurn = false;
     }
     
+    boolean addFleet(Fleet newFleet) {
+        // merge fleets if needed
+        for (Fleet f : _fleets)
+            if (f._dst == newFleet._dst &&
+                f._src == newFleet._src &&
+                f._eta == newFleet._eta &&
+                f._trip == newFleet._trip &&
+                f._owner == newFleet._owner) {
+                    f.addShips(newFleet.ships());
+                    return true;
+            }
+        // just add the new fleet if not found
+        _fleets.add(newFleet);
+        return false;
+    }
+
     public void updateOneLine(String line) {
         _parser.setSingleLine(line);
         if (_parser.hasNext()) {

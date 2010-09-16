@@ -1,13 +1,12 @@
 package compare;
 
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 import shared.Planet;
 
-public class CumulativeCloseness<K extends Planet, E> implements Comparator<Pair<K, E>>, IScore<K> {
+public class CumulativeCloseness<K extends Planet, E> implements IScore<Pair<K, E>> {
 
     Map<K, Double> _scoreCache = new HashMap<K, Double>();
     Set<K> _planets;
@@ -20,11 +19,12 @@ public class CumulativeCloseness<K extends Planet, E> implements Comparator<Pair
 
     @Override
     public int compare(Pair<K, E> p1, Pair<K, E> p2) {
-        return (int) (score(p1._key) - score(p2._key));
+        return (int) (score(p1) - score(p2));
     }
 
     @Override
-    public double score(K target) {
+    public double score(Pair<K, E> pair) {
+        K target = pair._key;
         if (_scoreCache.containsKey(target))
             return _scoreCache.get(target);
         else {

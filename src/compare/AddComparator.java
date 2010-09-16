@@ -1,30 +1,28 @@
 package compare;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 
 import shared.Planet;
 
-class AddComparator<K extends Planet, E> implements Comparator<Pair<K, E>>, IScore<K> {
+class AddComparator<K extends Planet, E> implements IScore<Pair<K, E>> {
 
-    ArrayList<IScore<K>> _scorers = new ArrayList<IScore<K>>();
+    ArrayList<IScore<Pair<K, E>>> _scorers = new ArrayList<IScore<Pair<K, E>>>();
     
-    public AddComparator(IScore<K>... scorers) {
-        for (IScore<K> scorer : scorers)
+    public AddComparator(IScore<Pair<K, E>>... scorers) {
+        for (IScore<Pair<K, E>> scorer : scorers)
             _scorers.add(scorer);
     }
     
     @Override
     public int compare(Pair<K, E> p1, Pair<K, E> p2) {
-        // TODO Auto-generated method stub
-        return 0;
+        throw new RuntimeException("not implemented yet");
     }
     
     @Override
-    public double score(K target) {
+    public double score(Pair<K, E> pair) {
         double ret = 0;
-        for (IScore<K> scorer : _scorers)
-            ret += scorer.score(target);
+        for (IScore<Pair<K, E>> scorer : _scorers)
+            ret += scorer.score(pair);
         return ret;
     }
     

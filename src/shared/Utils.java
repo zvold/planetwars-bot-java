@@ -5,13 +5,6 @@ public class Utils {
     public static boolean _verbose = false;
     public static int _timeout = 1000;
     
-    public static void log(String msg) {
-        if (!_verbose)
-            return;
-        System.err.println(msg);
-        System.err.flush();
-    }
-
     public static void setLogging(boolean flag) {
         _verbose = flag;
     }
