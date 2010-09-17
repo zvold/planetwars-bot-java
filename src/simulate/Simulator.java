@@ -1,9 +1,5 @@
 package simulate;
 
-import static shared.Race.ALLY;
-import static shared.Race.ENEMY;
-import static shared.Race.NEUTRAL;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -11,6 +7,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import shared.Fleet;
+import shared.FutureOrder;
 import shared.Planet;
 import shared.Race;
 
@@ -37,16 +34,31 @@ public class Simulator {
         notifyPossibleMinShips(0, ret.owner(), ret.ships());
         
         for (int turn = 1; turn <= turns; turn++) {
+            // departures
+            if (ret.hasFutureOrders(turn)) {
+                for (FutureOrder order : ret.futureOrders(turn)) {
+                    if (order.from() == planet) {
+                        if (ret.ships() >= order.ships() && order.owner() == planet.owner()) {
+                            notifyPossibleMinShips(turn, ret.owner(), ret.ships() - order.ships());
+                            ret.addShips(-order.ships());
+                        }
+                        else {
+                            // invalid order during simulation, skip for now
+                        }
+                    }
+                }
+            }
+            
             // growth ships
-            if (ret.owner() != NEUTRAL)
-                ret.setShips(ret.ships() + ret.growth());
+            if (ret.owner() != Race.NEUTRAL)
+                ret.addShips(ret.growth());
             
             // number of ships arriving this turn
             _arriving.clear();
             
-            if ((sumFleets = sumFleets(turn, ret, ALLY)) != null)
+            if ((sumFleets = sumFleets(turn, ret, Race.ALLY)) != null)
                 _arriving.add(sumFleets);
-            if ((sumFleets = sumFleets(turn, ret, ENEMY)) != null)
+            if ((sumFleets = sumFleets(turn, ret, Race.ENEMY)) != null)
                 _arriving.add(sumFleets);
             
             if (ret.owner() == Race.NEUTRAL)
@@ -68,17 +80,25 @@ public class Simulator {
                     ret.setOwner(max.owner());
                     notifyOwnerChange(turn, oldOwner, oldShips, ret.owner(), ret.ships());
                 }
+            } else if (!_arriving.isEmpty()) {
+                Fleet fleet = _arriving.get(0);
+                assert(fleet.owner() == ret.owner()) : "1 fleet - must be the same owner";
+                if (fleet.owner() != Race.NEUTRAL)
+                    ret.setShips(fleet.ships()); // old ships already added
             }
             notifyPossibleMinShips(turn, ret.owner(), ret.ships());
         }
-        
         return ret;
     }
 
-    private void resetAllListeners() {
+    private void resetMinShipListeners() {
         if (_minShipsListeners != null)
             for (MinShipsListener listener : _minShipsListeners)
                 listener.reset();
+    }
+
+    private void resetAllListeners() {
+        resetMinShipListeners();
         if (_ownerChangeListeners != null)
             for (OwnerChangeListener listener : _ownerChangeListeners)
                 listener.reset();
@@ -95,6 +115,16 @@ public class Simulator {
                     ret = new Fleet(owner);
                 ret.addShips(f.ships());
             }
+        
+        // optimistically assume none of the incoming future orders were cancelled
+        if (planet.hasFutureOrders(turn))
+            for (FutureOrder order : planet.futureOrders(turn))
+                if (order.to().id() == planet.id() && order.owner() == owner) {
+                    if (ret == null)
+                        ret = new Fleet(owner);
+                    ret.addShips(order.ships());
+                }
+        
         return ret;
     }
 

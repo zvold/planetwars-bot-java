@@ -147,6 +147,23 @@ public class Game {
         assert(checkTotalGrowth()) : "growth rate tracking sanity check";
     }
 
+    public void addFutureOrder(FutureOrder order) {
+        if (order.ships() == 0)
+            return;
+        planet(order.from().id()).addFutureOrder(order);
+        planet(order.to().id()).addFutureOrder(order.arrivalCopy());
+    }
+
+    public void advanceFutureOrders() {
+        for (Planet planet : _planets)
+            planet.advanceFutureOrders();
+    }
+    
+    public void clearFutureOrders() {
+        for (Planet planet : _planets)
+            planet.clearFutureOrders();
+    }
+    
     private boolean checkTotalGrowth() {
         int totalGrowth = 0;
         for (Planet planet : _planets)
@@ -172,5 +189,23 @@ public class Game {
 
     public int growth(Race race) {
         return _growths[race.ordinal()];
+    }
+
+    public int ships(Race owner) {
+        int ships = 0;
+        for (Planet planet : planets(owner))
+            ships += planet.ships();
+        for (Fleet fleet : fleets())
+            if (fleet.owner() == owner)
+                ships += fleet.ships();
+        return ships;
+    }
+
+    public int fleets(Race owner) {
+        int ships = 0;
+        for (Fleet fleet : fleets())
+            if (fleet.owner() == owner)
+                ships += fleet.ships();
+        return ships;
     }
 }

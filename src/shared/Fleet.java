@@ -27,6 +27,16 @@ public class Fleet {
         _ships = ships;
     }
 
+    public Fleet(Race owner, int ships, Planet src, Planet dst) {
+        _owner = owner;
+        _ships = ships;
+        _src = src.id();
+        _dst = dst.id();
+        _trip = src.distance(dst);
+        _eta = _trip;
+        _id = -1;
+    }
+
     public void update(Matcher m) {
         _owner  = Race.values()[Integer.parseInt(m.group(1))];
         _ships  = Integer.parseInt(m.group(2));
@@ -68,10 +78,12 @@ public class Fleet {
 
     public void setShips(int ships) {
         _ships = ships;
+        assert(_ships >= 0) : "ships >= 0";
     }
 
     public Fleet addShips(int ships) {
         _ships += ships;
+        assert(_ships >= 0) : "ships >= 0";
         return this;
     }
 

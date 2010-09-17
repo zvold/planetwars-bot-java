@@ -2,28 +2,27 @@ package simulate;
 
 import shared.Race;
 
-public class FirstLoseRecorder implements OwnerChangeListener {
+public class LastLoseRecorder implements OwnerChangeListener {
 
-    Race _changedFrom = null;
+    Race _changedFrom;
     Race _changedTo;
     int _turn = -1;
     int _ships = -1;
     
-    public FirstLoseRecorder(Race changedTo) {
-        _changedTo = changedTo;
-    }
-
-    public FirstLoseRecorder(Race changedFrom, Race changedTo) {
-        _changedFrom = changedFrom;
+    public LastLoseRecorder(Race changedTo) {
         _changedTo = changedTo;
     }
     
+    public LastLoseRecorder(Race changedFrom, Race changedTo) {
+        _changedFrom = changedFrom;
+        _changedTo = changedTo;
+    }
+
     @Override
     public void ownerChanged(int turn, Race fromRace, int fromShips,
                                        Race toRace, int toShips) {
-        fromRace = (_changedFrom == null ? null : fromRace);
-        if (_turn == -1 && toRace == _changedTo
-                        && fromRace == _changedFrom) {
+        fromRace = (_changedFrom == null ? null : fromRace);        
+        if (toRace == _changedTo && fromRace == _changedFrom) {
             _ships = toShips;
             _turn = turn;
         }

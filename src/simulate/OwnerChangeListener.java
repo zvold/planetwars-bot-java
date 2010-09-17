@@ -8,4 +8,6 @@ public interface OwnerChangeListener {
     
     public void reset();
     
+    public int turn();
+    
 }

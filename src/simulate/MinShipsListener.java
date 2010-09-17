@@ -31,11 +31,15 @@ public class MinShipsListener {
     }
     
     public int ships(Race owner) {
-        return _minShips[owner.ordinal()]; 
+        return _minShips[owner.ordinal()] != Integer.MAX_VALUE ? 
+               _minShips[owner.ordinal()] : 0 ; 
     }
     
     public int turn(Race owner) {
         return _minTurns[owner.ordinal()];
     }
     
+    public boolean wasOwned(Race owner) {
+        return _minShips[owner.ordinal()] != Integer.MAX_VALUE;
+    }
 }

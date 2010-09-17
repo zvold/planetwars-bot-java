@@ -1,9 +1,7 @@
 package shared;
 
-import static shared.Race.ALLY;
-import static shared.Race.ENEMY;
-
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -23,6 +21,8 @@ public class Planet {
                                                     new ArrayList<Fleet>(),
                                                     new ArrayList<Fleet>()};
 
+    Map<Integer, ArrayList<FutureOrder>> _orders = new HashMap<Integer, ArrayList<FutureOrder>>();
+    
     private Planet(Planet from) {
         _id = from._id;
         _x = from._x;
@@ -32,8 +32,9 @@ public class Planet {
         _distCache = from._distCache;
         _owner = from._owner;
         
-        _incoming[ALLY.ordinal()] = new ArrayList<Fleet>(from.incoming(ALLY));
-        _incoming[ENEMY.ordinal()] = new ArrayList<Fleet>(from.incoming(ENEMY));
+        _incoming[Race.ALLY.ordinal()] = new ArrayList<Fleet>(from.incoming(Race.ALLY));
+        _incoming[Race.ENEMY.ordinal()] = new ArrayList<Fleet>(from.incoming(Race.ENEMY));
+        _orders = new HashMap<Integer, ArrayList<FutureOrder>>(from._orders);
     }
     
     public Planet(int id, Matcher m) {
@@ -82,8 +83,8 @@ public class Planet {
     }
 
     public void clearFleets() {
-        _incoming[ALLY.ordinal()].clear();
-        _incoming[ENEMY.ordinal()].clear();
+        _incoming[Race.ALLY.ordinal()].clear();
+        _incoming[Race.ENEMY.ordinal()].clear();
     }
 
     public void addIncomingFleet(Fleet fleet) {
@@ -92,6 +93,48 @@ public class Planet {
 
     public ArrayList<Fleet> incoming(Race owner) {
         return _incoming[owner.ordinal()];
+    }
+
+    public void addFutureOrder(FutureOrder order) {
+        if (!_orders.containsKey(order.turn()))
+            _orders.put(order.turn(), new ArrayList<FutureOrder>());
+        _orders.get(order.turn()).add(order);
+        assert(checkOwnFutureOrders()) : "check future orders validity";
+    }
+    
+    private boolean checkOwnFutureOrders() {
+        for (Integer turn : _orders.keySet())
+            for (FutureOrder order : _orders.get(turn))
+                if (order.from() != this && order.to() != this)
+                    return false;
+        return true;
+    }
+
+    public boolean hasFutureOrders(int turn) {
+        return _orders.containsKey(turn);
+    }
+    
+    public Collection<FutureOrder> futureOrders(int turn) {
+        return _orders.get(turn);
+    }
+
+    public void advanceFutureOrders() {
+        Map<Integer, ArrayList<FutureOrder>> newMap 
+            = new HashMap<Integer, ArrayList<FutureOrder>>(_orders.size());
+        for (Integer turn : _orders.keySet()) {
+            assert(turn >= 0) : "future or now";
+            if (turn != 0)
+                newMap.put(turn - 1, _orders.get(turn));
+        }
+        _orders = newMap;
+    }
+    
+    public void clearFutureOrders() {
+        _orders.clear();
+    }
+
+    public void removeFutureOrders(int i) {
+        _orders.remove(i);
     }
     
     public Planet deepCopy() {
@@ -122,12 +165,22 @@ public class Planet {
         return _y;
     }
 
+    public void addShips(int num) {
+        _ships += num;
+        assert(_ships >= 0) : "ships >= 0";
+    }
+    
     public void setShips(int ships) {
         _ships = ships;
+        assert(_ships >= 0) : "ships >= 0";
     }
 
     public void setOwner(Race owner) {
         _owner = owner;
+    }
+
+    public boolean hasFutureOrders() {
+        return !_orders.isEmpty();
     }
 
 }

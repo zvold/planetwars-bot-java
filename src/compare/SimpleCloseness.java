@@ -3,13 +3,12 @@ package compare;
 import java.util.Collection;
 
 import shared.Planet;
-import shared.Race;
 
-public class CumulativeCloseness implements IScore<Planet> {
+public class SimpleCloseness implements IScore<Planet> {
 
     Collection<Planet> _planets;
 
-    public CumulativeCloseness(Collection<Planet> planets) {
+    public SimpleCloseness(Collection<Planet> planets) {
         _planets = planets;
     }
 
@@ -22,15 +21,13 @@ public class CumulativeCloseness implements IScore<Planet> {
     public double score(Planet target) {
         double score = 0;
         for (Planet planet : _planets) {
-            if (planet.owner() == Race.NEUTRAL || planet == target)
+            if (planet == target)
                 continue;
-            int sign = (planet.owner() == Race.ALLY) ? -1 : 1;
-            score += (double)sign * (double)planet.ships() / (double)planet.distance(target);
+            score += (double)planet.ships() / (double)planet.distance(target);
         }
-        score *= (double)target.growth();
         score *= 100.0d;
         
-        return score;
+        return -score;
     }
 
 }
