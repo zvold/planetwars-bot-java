@@ -41,8 +41,8 @@ public class GameTest {
         game.updateFullState(GameStates.STATE3);
 
         assertEquals("total fleets", 4, game.fleets().size());
-        assertEquals("fleet 0 src", 3, game.fleets().get(0).src());
-        assertEquals("fleet 2 src", 1, game.fleets().get(2).src());
+        assertEquals("incoming ally fleets", 2, game.planet(0).incoming(Race.ALLY).size()); 
+        assertEquals("incoming enemy fleets", 1, game.planet(1).incoming(Race.ENEMY).size());
     }
 
     @Test

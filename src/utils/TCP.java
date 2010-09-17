@@ -109,6 +109,7 @@ public class TCP {
         } catch (Exception e) {
             System.err.println("ERROR: unknown exception");
             System.err.println(e.getMessage());
+            e.printStackTrace();
         }
 
         System.out.println("Turns: " + turns);

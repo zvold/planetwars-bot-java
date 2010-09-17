@@ -1,5 +1,6 @@
 package shared;
 
+
 public enum Race {
 
     NEUTRAL, ALLY, ENEMY;
@@ -17,6 +18,19 @@ public enum Race {
     
     public int[] others() {
         return _others[ordinal()];
+    }
+    
+    public Race opponent() {
+        switch (this) {
+            case NEUTRAL:
+                return Race.NEUTRAL;
+            case ALLY:
+                return Race.ENEMY;
+            case ENEMY:
+                return Race.ALLY;
+            default:
+                throw new RuntimeException();
+        }
     }
     
 }

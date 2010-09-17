@@ -16,7 +16,7 @@ public class Timer {
         return ret;
     }
 
-    public long totalTime() {
+    public long total() {
         return System.currentTimeMillis() - _start;
     }
     

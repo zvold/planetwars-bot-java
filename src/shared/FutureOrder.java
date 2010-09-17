@@ -1,58 +1,38 @@
 package shared;
 
+import orders.Order;
+import orders.OrderFactory;
+
+/**
+ * Represents an order to be issued in the future. There are 2 copies of the
+ * same order - one stored in departing planet, and one in arriving one. They
+ * have the same order id.
+ */
 public class FutureOrder {
 
-    int    _id;
-    Planet _from;
-    Planet _to;
-    int    _ships;
-    int    _turn;   // intial turns at the order's creation time
+    int    _id;         // just an unique id, same for departing and arrival orders
+    Order  _order;
     Race   _owner;
+    int    _turn;       // initial turns at the order's creation time
     
     private static int _counter = 0;
     
-    private FutureOrder(int id, Planet from, Planet to, int ships, int turn) {
-        _from = from;
-        _to = to;
-        _ships = ships;
+    FutureOrder(int id, Race owner, Planet from, Planet to, int ships, int turn) {
+        _order = OrderFactory.createOrder(from.id(), to.id(), ships);
         _turn = turn;
         _id = id;
-        _owner = Race.ALLY;
-        assert(_ships >= 0) : "ships >= 0";
+        _owner = owner;
+        assert(ships() >= 0) : "ships >= 0";
     }
     
-    public FutureOrder(Planet from, Planet to, int ships, int turn) {
-        this(_counter++, from, to, ships, turn);
-    }
-    
-    public FutureOrder arrivalCopy() {
-        // same id, but is carried out a distance of turns later
-        return new FutureOrder(_id, _from, _to, _ships, 
-                               _turn + _from.distance(_to));
-    }
-
-    public FutureOrder removeArrival() {
-        // TODO: can we calculate precise turn beforehand ?
-        // yes we can, see below
-        FutureOrder found = null;
-        int turnFound = -1;
-        for (Integer turn : _to._orders.keySet())
-            for (FutureOrder order : _to.futureOrders(turn))
-                if (order._id == this._id) {
-                    found = order;
-                    turnFound = turn;
-                    break;
-                }
-        assert(turnFound == _to.distance(_from)) : "check correct turn";
-        assert(found != null) : "must have a future order";
-        _to._orders.get(turnFound).remove(found);
-        return found;
+    public FutureOrder(Race owner, Planet from, Planet to, int ships, int turn) {
+        this(_counter++, owner, from, to, ships, turn);
     }
     
     @Override
     public String toString() {
-        return "(" + _id + ") " + _ships + ":" + _owner + ", " +  
-               _from.id() + " -> " + _to.id() + ", at " + _turn;
+        return "(" + _id + ") " + ships() + ":" + _owner + ", " +  
+               from() + " -> " + to() + ", at " + _turn;
     }
 
     public Race owner() {
@@ -63,16 +43,16 @@ public class FutureOrder {
         return _id;
     }
     
-    public Planet from() {
-        return _from;
+    public int from() {
+        return _order._src;
     }
     
-    public Planet to() {
-        return _to;
+    public int to() {
+        return _order._dst;
     }
     
     public int ships() {
-        return _ships;
+        return _order._shp;
     }
     
     int turn() {

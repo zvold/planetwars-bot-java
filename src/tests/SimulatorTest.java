@@ -8,6 +8,7 @@ import static shared.Race.NEUTRAL;
 import org.junit.Before;
 import org.junit.Test;
 
+import shared.FutureOrder;
 import shared.Game;
 import shared.Planet;
 import shared.Race;
@@ -27,15 +28,15 @@ public class SimulatorTest {
     public void setUp() {
         _record = new RecordingOwnerChangeListener();
         _minShips = new MinShipsListener();
-        _simulator = new Simulator();
-        _simulator.addListener(_record);
-        _simulator.addListener(_minShips);
         Utils.setLogging(true);
     }
     
     @Test
     public void testSimulator1() {
         Game game = new Game(GameStates.STATE14);
+        _simulator = new Simulator(game);
+        _simulator.addListener(_record);
+        _simulator.addListener(_minShips);
         Planet planet = _simulator.simulate(game.planet(0), 10);
         
         assertEquals("ownership change events", 1, _record.events());
@@ -53,6 +54,9 @@ public class SimulatorTest {
     @Test
     public void testSimulator2() {
         Game game = new Game(GameStates.STATE15);
+        _simulator = new Simulator(game);
+        _simulator.addListener(_record);
+        _simulator.addListener(_minShips);
         Planet planet = _simulator.simulate(game.planet(0), 10);
         
         assertEquals("ownership change events", 1, _record.events());
@@ -70,6 +74,9 @@ public class SimulatorTest {
     @Test
     public void testSimulator3() {
         Game game = new Game(GameStates.STATE16);
+        _simulator = new Simulator(game);
+        _simulator.addListener(_record);
+        _simulator.addListener(_minShips);
         Planet planet = _simulator.simulate(game.planet(0), 10);
         
         assertEquals("ownership change events", 2, _record.events());
@@ -88,6 +95,9 @@ public class SimulatorTest {
     @Test
     public void testSimulatorBug() {
         Game game = new Game(GameStates.STATE_BUG);
+        _simulator = new Simulator(game);
+        _simulator.addListener(_record);
+        _simulator.addListener(_minShips);
         Planet planet = _simulator.simulate(game.planet(13), 8);
         assertEquals("owner doesn't change", game.planet(13).owner(), planet.owner());
     }
@@ -95,6 +105,9 @@ public class SimulatorTest {
     @Test
     public void testSimulatorBug2() {
         Game game = new Game(GameStates.STATE_BUG2);
+        _simulator = new Simulator(game);
+        _simulator.addListener(_record);
+        _simulator.addListener(_minShips);
         Planet planet = _simulator.simulate(game.planet(0), 50);
         assertEquals("owner doesn't change", game.planet(0).owner(), planet.owner());
     }
@@ -102,6 +115,9 @@ public class SimulatorTest {
     @Test
     public void testSimulatorBug3() {
         Game game = new Game(GameStates.STATE_BUG3);
+        _simulator = new Simulator(game);
+        _simulator.addListener(_record);
+        _simulator.addListener(_minShips);
         Planet future = _simulator.simulate(game.planet(0), 9);
         assertEquals("check enemy ships", 77, future.ships());
         
@@ -112,9 +128,56 @@ public class SimulatorTest {
     @Test
     public void testSimulator4() {
         Game game = new Game(GameStates.STATE_BUG3);
-        Planet future = _simulator.simulate(game.planet(1), 9);
+        _simulator = new Simulator(game);
+        _simulator.addListener(_record);
+        _simulator.addListener(_minShips);
+        Planet future = _simulator.simulate(game.planet(1), 7);
         assertEquals("allied fleet", 1, future.incoming(Race.ALLY).size());
-        assertEquals("allied fleet", 102, future.incoming(Race.ALLY).get(0).ships());
+        assertEquals("allied fleet size", 102, future.incoming(Race.ALLY).get(0).ships());
+        assertEquals("allied fleet eta", 1, future.incoming(Race.ALLY).get(0).eta());
+        
+        future = _simulator.simulate(game.planet(1), 9);
+        assertEquals("allied fleet", 0, future.incoming(Race.ALLY).size());
+    }
+
+    @Test
+    public void testSimulatorFuture1() {
+        Game game = new Game(GameStates.STATE_FUTURE);
+        _simulator = new Simulator(game);
+        _simulator.addListener(_record);
+        _simulator.addListener(_minShips);
+        FutureOrder order = new FutureOrder(Race.ENEMY, game.planet(0), game.planet(1), 1, 4);
+        System.out.println(game.planet(0).distance(game.planet(1)));
+        game.addFutureOrder(order);
+        Planet future0 = _simulator.simulate(game.planet(0), 9);
+        assertEquals("planet 0 ships", 5, future0.ships());
+        assertEquals("planet 0 owner", Race.ENEMY, future0.owner());
+        
+        Planet future1 = _simulator.simulate(game.planet(1), 9);
+        assertEquals("planet 1 ships", 1, future1.ships());
+
+        future1 = _simulator.simulate(game.planet(1), 20);
+        assertEquals("planet 1 ships", 1, future1.ships());
+    }
+
+    @Test
+    public void testSimulatorFuture2() {
+        Game game = new Game(GameStates.STATE_FUTURE2);
+        _simulator = new Simulator(game);
+        _simulator.addListener(_record);
+        _simulator.addListener(_minShips);
+        FutureOrder order = new FutureOrder(Race.ENEMY, game.planet(0), game.planet(1), 1, 4);
+        System.out.println(game.planet(0).distance(game.planet(1)));
+        game.addFutureOrder(order);
+        Planet future0 = _simulator.simulate(game.planet(0), 9);
+        assertEquals("planet 0 ships", 5, future0.ships());
+        assertEquals("planet 0 owner", Race.ALLY, future0.owner());
+        
+        Planet future1 = _simulator.simulate(game.planet(1), 9);
+        assertEquals("planet 1 ships", 1, future1.ships());
+
+        future1 = _simulator.simulate(game.planet(1), 20);
+        assertEquals("planet 1 ships", 1, future1.ships());
     }
     
     public void log(String msg) {
@@ -158,6 +221,11 @@ public class SimulatorTest {
         public int turn() {
             // TODO Auto-generated method stub
             return 0;
+        }
+
+        @Override
+        public boolean changed() {
+            return !"".equals(_record);
         }
     }
     

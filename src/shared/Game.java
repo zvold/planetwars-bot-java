@@ -1,159 +1,168 @@
 package shared;
 
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
+
+import filters.OwnerFilter;
 
 public class Game {
 
-    boolean           _isFirstTurn = true;
-    ArrayList<Planet> _planets = new ArrayList<Planet>(32);
-    ArrayList<Fleet>  _fleets = new ArrayList<Fleet>(128);
-    Parser            _parser;
-    
-    @SuppressWarnings("unchecked")
-    Set<Planet>[]    _owners = new HashSet[] {new HashSet<Planet>(), 
-                                              new HashSet<Planet>(),
-                                              new HashSet<Planet>()};
-    int[]            _growths = new int[3];
-    
+    ArrayList<Planet>    _planets = new ArrayList<Planet>(32);
+   
+    /**
+     * Creates the Game object from the full game state (a String ending with
+     * "go").
+     * 
+     * @param from
+     */
     public Game(String from) {
         initFullState(from);
     }
     
+    /**
+     * Creates a Game w/o the state. Subsequent calls to updateFullState(),
+     * initFullState(), or updateOneLine() expected.
+     */
     public Game() {
-        _parser = new Parser("");
+        Parser.init("");
     }
     
+    /**
+     * Updates the Game object with the information from passed full game state
+     * (a String ending with "go"). Tries to re-use existing Planet and Fleet
+     * objects.
+     * 
+     * @param from
+     */
     public void updateFullState(String from) {
-        if (_isFirstTurn) {
+        if (_planets.isEmpty()) {
             // just in case we haven't invoked init* first
             initFullState(from);
         } else {
-            _parser = new Parser(from);
-            while (_parser.hasNext()) {
-                switch (_parser.kind()) {
+            startTurnParsing();
+            Parser.init(from);
+            while (Parser.hasNext()) {
+                switch (Parser.kind()) {
                     case FLEET:
-                        _parser.updateFleet(_fleets);
+                        Fleet fleet = (Fleet)Parser.next();
+                        addFleet(fleet);
                         break;
                     case PLANET:
-                        Planet planet = _parser.updatePlanet(_planets);
-                        updatePlanetOwner(planet);
+                        Parser.updatePlanet(_planets);
                         break;
                     default:
-                        _parser.discard();
+                        Parser.discard();
                 }
             }
-            // make sure to discard the fleets' tail after arraylist reusage
-            _fleets.subList(_parser._fleetId, _fleets.size()).clear();
-            assert(_parser._planetId == _planets.size()) : "number of planets doesn't change";
-            updatePlanetFleets();
         }
     }
     
+    private void clearAllFleets() {
+        for (Planet planet : _planets) {
+            planet._incoming[Race.ALLY.ordinal()].clear();
+            planet._incoming[Race.ENEMY.ordinal()].clear();
+        }
+    }
+
+    /**
+     * Creates a Game object from scratch.
+     * 
+     * @param from Full game state String, ending with "go".
+     */
     public void initFullState(String from) {
-        _planets = new ArrayList<Planet>(32);
-        _fleets = new ArrayList<Fleet>(128);
-        
-        _parser = new Parser(from);
-        
-        while (_parser.hasNext()) {
-            switch (_parser.kind()) {
+        _planets.clear();
+        Parser.init(from);
+        while (Parser.hasNext()) {
+            switch (Parser.kind()) {
                 case FLEET: {
-                    Fleet fleet = (Fleet)_parser.next();
+                    Fleet fleet = (Fleet)Parser.next();
                     addFleet(fleet);
                     break;
                 }
                 case PLANET: {
-                    Planet planet = (Planet)_parser.next(); 
+                    Planet planet = (Planet)Parser.next(); 
                     _planets.add(planet);
-                    updatePlanetOwner(planet);
                     break;
                 }
                 default:
-                    _parser.discard();
+                    Parser.discard();
                     break;
             }
         }
-        updatePlanetFleets();
-        _isFirstTurn = false;
     }
     
     boolean addFleet(Fleet newFleet) {
-        // merge fleets if needed
-        for (Fleet f : _fleets)
-            if (f._dst == newFleet._dst &&
-                f._src == newFleet._src &&
+        Planet planet = _planets.get(newFleet.dst());
+        assert(planet != null) : "must have a planet";
+        for (Fleet f : planet.incoming(newFleet.owner()))
+            if (f.dst() == newFleet.dst() &&
+                f.src() == newFleet.src() &&
                 f._eta == newFleet._eta &&
                 f._trip == newFleet._trip &&
                 f._owner == newFleet._owner) {
-                    f.addShips(newFleet.ships());
-                    return true;
+                        f.addShips(newFleet.ships());
+                        return true;
             }
-        // just add the new fleet if not found
-        _fleets.add(newFleet);
+        planet._incoming[newFleet.owner().ordinal()].add(newFleet);
         return false;
     }
 
     public void updateOneLine(String line) {
-        _parser.setSingleLine(line);
-        if (_parser.hasNext()) {
-            switch (_parser.kind()) {
+        Parser.setSingleLine(line);
+        if (Parser.hasNext()) {
+            switch (Parser.kind()) {
                 case FLEET:
-                    _parser.updateFleet(_fleets);
+                    Fleet fleet = (Fleet)Parser.next();
+                    addFleet(fleet);
                     break;
                 case PLANET:
-                    Planet planet = _parser.updatePlanet(_planets);
-                    updatePlanetOwner(planet);
+                    Parser.updatePlanet(_planets);
                     break;
                 default:
-                    _parser.discard();
+                    Parser.discard();
             }
         }
     }
     
-    public void resetTurn() {
-        // make sure to truncate fleets list, discarding non-used 'tail'
-        _fleets.subList(_parser._fleetId, _fleets.size()).clear();
-        updatePlanetFleets();
-        assert(_parser._planetId == _planets.size()) : "number of planets doesn't change";
-        _parser.reset();
+    /**
+     * Maintenance method to be called when the turn parsing is finished, i.e.
+     * after "go" command is encountered.
+     */
+    public void startTurnParsing() {
+        assert(Parser._planetId == _planets.size()) : "number of planets doesn't change";
+        Parser.reset();
+        clearAllFleets();
     }
     
-    private void updatePlanetFleets() {
-        for (Planet planet : _planets) {
-            planet.clearFleets();
-            for (Fleet fleet : _fleets)
-                if (fleet.dst() == planet.id())
-                    planet.addIncomingFleet(fleet);
-        }
-    }
-
-    public void updatePlanetOwner(Planet planet) {
-        boolean wasAdded = _owners[planet.owner().ordinal()].add(planet);
-        if (wasAdded)
-            _growths[planet.owner().ordinal()] += planet.growth();
-        
-        for (int i : planet.owner().others()) {
-            boolean wasRemoved = _owners[i].remove(planet);
-            if (wasRemoved)
-                _growths[i] -= planet.growth();
-        }
-        
-        assert(_owners[0].size() + 
-               _owners[1].size() +
-               _owners[2].size() == _planets.size()) : "check total planets amount";
-        
-        assert(checkTotalGrowth()) : "growth rate tracking sanity check";
-    }
-
+    /**
+     * Adds a future order to both source and destination planet (an arrival copy).
+     * @param order
+     */
     public void addFutureOrder(FutureOrder order) {
-        if (order.ships() == 0)
+        if (order.ships() == 0) // don't bother
             return;
-        planet(order.from().id()).addFutureOrder(order);
-        planet(order.to().id()).addFutureOrder(order.arrivalCopy());
+        planet(order.from()).addFutureOrder(order);
+        planet(order.to()).addFutureOrder(arrivalCopy(order));
     }
 
+    private FutureOrder arrivalCopy(FutureOrder order) {
+        Planet src = planet(order.from());
+        Planet dst = planet(order.to());
+        return new FutureOrder(order.id(), order.owner(), src, dst, order.ships(), 
+                               order.turn() + src.distance(dst));
+    }
+
+    /**
+     * Removes corresponding arrival copy from the destination planet.
+     * @param turn 
+     * 
+     * @return The removed order.
+     */
+    public FutureOrder removeArrival(FutureOrder order) {
+        Planet dst = planet(order.to());
+        return dst.removeFutureOrder(order);
+    }
+  
     public void advanceFutureOrders() {
         for (Planet planet : _planets)
             planet.advanceFutureOrders();
@@ -164,48 +173,62 @@ public class Game {
             planet.clearFutureOrders();
     }
     
-    private boolean checkTotalGrowth() {
-        int totalGrowth = 0;
-        for (Planet planet : _planets)
-            totalGrowth += planet.growth();
-        return _growths[0] + _growths[1] + _growths[2] == totalGrowth;
-    }
-
-    public ArrayList<Planet> planets() {
+    public List<Planet> planets() {
         return _planets;
     }
     
-    public Set<Planet> planets(Race race) {
-        return _owners[race.ordinal()];
+    public List<Planet> planets(Race owner) {
+        return new OwnerFilter(_planets, owner).select();
     }
     
-    public ArrayList<Fleet> fleets() {
-        return _fleets;
-    }
-
     public Planet planet(int i) {
         return _planets.get(i);
     }
 
-    public int growth(Race race) {
-        return _growths[race.ordinal()];
+    /**
+     * Returns total growth rate for a given owner.
+     */
+    public int growth(Race owner) {
+        int ret = 0;
+        for (Planet planet : planets(owner))
+            ret += planet.growth();
+        return ret;
     }
 
+    /**
+     * Returns total number of ships for a given owner.
+     */
     public int ships(Race owner) {
         int ships = 0;
         for (Planet planet : planets(owner))
             ships += planet.ships();
-        for (Fleet fleet : fleets())
-            if (fleet.owner() == owner)
+        return ships + fleets(owner);
+    }
+
+    /**
+     * Returns total number of ships in flight for a given owner.
+     */
+    public int fleets(Race owner) {
+        int ships = 0;
+        for (Planet planet : _planets) {
+            for (Fleet fleet : planet.incoming(owner))
                 ships += fleet.ships();
+        }
         return ships;
     }
 
-    public int fleets(Race owner) {
-        int ships = 0;
-        for (Fleet fleet : fleets())
-            if (fleet.owner() == owner)
-                ships += fleet.ships();
-        return ships;
+    public List<Fleet> fleets() {
+        List<Fleet> ret = new ArrayList<Fleet>();
+        for (Planet planet : _planets) {
+            ret.addAll(planet.incoming(Race.ALLY));
+            ret.addAll(planet.incoming(Race.ENEMY));
+        }
+        return ret;
     }
+
+    public void clearAllData() {
+        for (Planet planet : _planets)
+            planet.setData(null);
+    }
+
 }

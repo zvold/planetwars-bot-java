@@ -52,7 +52,7 @@ public class FutureOrderTest {
         Planet planet = game.planet(12);
         
         LastLoseRecorder lost = new LastLoseRecorder(Race.ENEMY);
-        Simulator sim = new Simulator();
+        Simulator sim = new Simulator(game);
         sim.addListener(lost);
         Planet future = sim.simulate(planet, 12);   // enemy's fleet ETA
         assertEquals("check owner change", Race.ENEMY, future.owner());
@@ -65,13 +65,13 @@ public class FutureOrderTest {
         int shipsNeeded = lost.ships() + planet.growth() + 1;   // growth happens before arrival
         int allyETA = game.planet(1).distance(planet);          // allied ETA
 
-        FutureOrder order = new FutureOrder(game.planet(1), planet, shipsNeeded, enemyETA + 1 - allyETA);
+        FutureOrder order = new FutureOrder(Race.ALLY, game.planet(1), planet, shipsNeeded, enemyETA + 1 - allyETA);
         game.addFutureOrder(order);
         
         LastLoseRecorder got = new LastLoseRecorder(Race.ALLY);
         sim.addListener(got);
         future = sim.simulate(planet, 13);
-        assertEquals("check planet aquisition", true, got.lost());
+        assertEquals("check planet aquisition", true, got.changed());
         assertEquals("check planet aquisition's turn", 13, got.turn());
     }
     

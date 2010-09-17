@@ -2,10 +2,10 @@ package bot;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Scanner;
 
 import shared.Fleet;
-import shared.FutureOrder;
 import shared.Game;
 import shared.Planet;
 import shared.Race;
@@ -13,18 +13,19 @@ import shared.Timer;
 import shared.Utils;
 import utils.ILogger;
 import utils.StdErrLogger;
+import filters.OwnerFilter;
+import filters.PlanetFilter;
 
 public abstract class BaseBot implements ILogger {
 
     int _turn;
-    public Game _game;
+    public Game _game = new Game();
     public Timer _timer = new Timer();
     ILogger _logger = new StdErrLogger();
     
     void run() {
         Scanner scanner = new Scanner(System.in);
         String line;
-        _game = new Game();
         boolean parsing = false;
         try {
             while (scanner.hasNextLine()) {
@@ -32,17 +33,22 @@ public abstract class BaseBot implements ILogger {
                 if (!parsing) {
                     parsing = true;
                     _timer.start();
+                    _game.startTurnParsing();
                 }
                 line = scanner.nextLine();
                 if (line.startsWith("go")) {
-                    _game.resetTurn();
                     log("# parsing took " + _timer.time() + " ms");
                     parsing = false;
-                    log("# doTurn(" + _turn + ") started at " + _timer.totalTime() + " ms total");
+                    log("# doTurn(" + _turn + ") started at " + _timer.total() + " ms total");
                     doTurn();
                     finishTurn();
                     log("# doTurn() took " + _timer.time() + " ms");
                     _turn++;
+                    if (_turn % Utils.gcturn() == 0) {
+                        // looks like a good time for GC
+                        System.gc();
+                        log("# System.gc() took " + _timer.time() + " ms");
+                    }
                 } else {
                     _game.updateOneLine(line);
                 }
@@ -57,8 +63,8 @@ public abstract class BaseBot implements ILogger {
         assert(src.ships() >= ships) : "invalid number of ships";
         if (ships == 0)
             return;
-        _game.planet(dst.id()).addIncomingFleet(new Fleet(src.owner(), ships, src, dst));
-        log("# sent " + ships + " ships " + src.id() + " -> " + dst.id());
+        dst.addIncomingFleet(new Fleet(src.owner(), ships, src, dst));
+        log("#\t\t sent " + ships + " ships " + src.id() + " -> " + dst.id());
         System.out.println(src.id() + " " + dst.id() + " " + ships);
         System.out.flush();
     }
@@ -82,37 +88,6 @@ public abstract class BaseBot implements ILogger {
         _logger.log(msg);
     }
 
-    public void carryOutFutureOrders() {
-        _game.advanceFutureOrders();
-        boolean hasFutureOrders = false;
-        for (Planet planet : _game.planets(Race.ALLY))
-            if (planet.hasFutureOrders(0)) {
-                if (!hasFutureOrders) {
-                    hasFutureOrders = true;
-                    log("# issuing " + planet.futureOrders(0).size() + " future orders...");
-                }
-                for (FutureOrder order : planet.futureOrders(0)) {
-                    // try to issue all outgoing orders
-                    if (order.from() == planet) {
-                        if (planet.ships() >= order.ships()) { 
-                            issueOrder(order.from(), order.to(), order.ships());
-                            planet.addShips(-order.ships());
-                            order.removeArrival();
-                        } else {
-                            // we're failing to send the order
-                            log("# can't send future order: " + order);
-                            // left it in place for outgoing planet, but remove for incoming one
-                            FutureOrder removed = order.removeArrival();
-                            log("# incoming order " +  removed + " removed for " + order.to());
-                        }
-                    }
-                }
-                planet.removeFutureOrders(0);
-            }
-        if (hasFutureOrders)
-            log("# all future orders has been issued");
-    }
-
     public int sumShips(Collection<Planet> planets) {
         int ret = 0;
         for (Planet planet : planets)
@@ -120,33 +95,28 @@ public abstract class BaseBot implements ILogger {
         return ret;
     }
 
-    public ArrayList<Planet> getNearestInRadius(Planet target, ArrayList<Planet> neighbors, 
-                                                Race owner, int radius) {
-        ArrayList<Planet> ret = new ArrayList<Planet>();
-        ArrayList<Planet> allies = new ArrayList<Planet>();
-        for (Planet planet : neighbors)
-            if (planet.owner() == owner)
-                allies.add(planet);
+    public List<Planet> getNearestInRadius(final Planet target, ArrayList<Planet> neighbors, 
+                                           Race owner, final int radius) {
+        List<Planet> ret = new ArrayList<Planet>();
+        List<Planet> allies = new OwnerFilter(neighbors, owner).select();
 
-        if (!allies.isEmpty()) {
-            Planet source = allies.get(0);
-            ret.add(source);
-            int distance = source.distance(target);
-            for (int i = 1; i < allies.size(); i++) {
-                Planet planet = allies.get(i);
+        if (allies.isEmpty())
+            return ret;
+        final Planet source = allies.remove(0);
+        final int distance = source.distance(target);
+        ret.add(source);
+        ret.addAll(new PlanetFilter(allies) {
+            @Override
+            public boolean filter(Planet planet) {
                 assert (planet.distance(target) >= distance) : "check sorting"
                         + planet.distance(target) + " >= " + distance;
-                if (Math.abs(planet.distance(target) - distance) < radius)
-                    ret.add(planet);
-                else
-                    break;
+                return (Math.abs(planet.distance(target) - distance) < radius);
             }
-        }
+        }.select());
         assert(!ret.contains(target)) : "target doesn't belong to neighbors set";
         return ret;
     }
     
     public abstract void doTurn();
-
     
 }

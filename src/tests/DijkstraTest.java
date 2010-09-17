@@ -2,8 +2,10 @@ package tests;
 
 import static org.junit.Assert.assertEquals;
 
+import org.junit.Before;
 import org.junit.Test;
 
+import shared.DistanceCache;
 import shared.Game;
 import shared.Planet;
 import shared.Race;
@@ -39,6 +41,11 @@ public class DijkstraTest {
                                  "P 8.87484699782 3.29441694493 1 69 1\n" + // 22
                                  "go\n";
         
+    @Before
+    public void setUp() {
+        DistanceCache.reset();
+    }
+    
     @Test
     public void testDijkstra() {
         Game game = new Game(STATE);
@@ -48,7 +55,7 @@ public class DijkstraTest {
             }
         });
         
-        dijkstra.calculate(game.planet(0), game.planets(Race.ALLY), null);
+        dijkstra.calculate(game.planet(0), game.planets(Race.ALLY));
         
         assertEquals("10->18 transfer", 18, dijkstra.backEdge(game.planet(10)).id());
         assertEquals("22->20 transfer", 20, dijkstra.backEdge(game.planet(22)).id());

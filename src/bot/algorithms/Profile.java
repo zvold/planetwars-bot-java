@@ -5,7 +5,7 @@ import bot.SimulatorBot;
 
 public class Profile extends SimulatorBot.Algorithm{
 
-    private static final int NUM_SAMPLES = 15;
+    private static final int NUM_SAMPLES = 10;
     
     int[][] _growth = new int[NUM_SAMPLES][Race.values().length];
     int[][] _ships  = new int[NUM_SAMPLES][Race.values().length];
@@ -80,6 +80,13 @@ public class Profile extends SimulatorBot.Algorithm{
     public float fleets(Race owner) {
         assert(owner != Race.NEUTRAL) : "no neutral";
         return _avgFleets[owner.ordinal()];
+    }
+
+    public void report() {
+        float shipsDiff = ((int)(100 * (ships(Race.ALLY) - ships(Race.ENEMY)))) / 100.0f;
+        float growthDiff = ((int)(100 * (growth(Race.ALLY) - growth(Race.ENEMY)))) / 100.0f;
+        log("# [ " + (shipsDiff > 0 ? "+" : "") + shipsDiff +
+              "\t" + (growthDiff > 0 ? "+" : "") + growthDiff + " ]");
     }
     
 }

@@ -10,4 +10,6 @@ public interface OwnerChangeListener {
     
     public int turn();
     
+    public boolean changed();
+    
 }

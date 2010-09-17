@@ -35,7 +35,8 @@ public class FirstLoseRecorder implements OwnerChangeListener {
         _ships = -1;
     }
 
-    public boolean lost() {
+    @Override
+    public boolean changed() {
         return (_turn != -1);
     }
     

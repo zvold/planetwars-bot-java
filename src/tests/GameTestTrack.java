@@ -16,9 +16,9 @@ public class GameTestTrack {
 
     private void updateByOneLine(Game game, String state) {
         String[] lines = state.split("\n");
+        game.startTurnParsing();
         for (String line : lines)
             game.updateOneLine(line);
-        game.resetTurn();
     }
     
     @Test
@@ -32,7 +32,6 @@ public class GameTestTrack {
     @Test
     public void testGameOwnerTrack2() {
         Game game = new Game(GameStates.STATE10);
-        game.resetTurn();
         updateByOneLine(game, GameStates.STATE11);
 
         assertEquals("num of neutral planets", 0, game.planets(NEUTRAL).size());
@@ -73,7 +72,6 @@ public class GameTestTrack {
     public void testGameOwnerTrack5() {
         Game game = new Game(GameStates.STATE10);
         game.updateFullState(GameStates.STATE12);
-        game.resetTurn();
         updateByOneLine(game, GameStates.STATE13);
 
         assertEquals("num of neutral planets", 1, game.planets(NEUTRAL).size());

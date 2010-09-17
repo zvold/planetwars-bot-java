@@ -3,6 +3,7 @@ package continuous;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import shared.Planet;
@@ -14,12 +15,12 @@ import compare.AdjacencyComparator;
 
 public class Adjacency extends TimedWork {
 
-    ArrayList<Planet> _planets;
+    List<Planet> _planets;
     int _i = 0;
     int _j = 1;
     Map<Planet, ArrayList<Planet>> _adj;
     
-    public Adjacency(ArrayList<Planet> planets, Timer timer, ILogger logger) {
+    public Adjacency(List<Planet> planets, Timer timer, ILogger logger) {
         super(timer, logger);
         _planets = planets;
         _adj = new HashMap<Planet, ArrayList<Planet>>();

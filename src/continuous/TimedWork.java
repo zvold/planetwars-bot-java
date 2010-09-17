@@ -18,7 +18,7 @@ public abstract class TimedWork {
             return;
         do {
             doWorkChunk();
-        } while (!isDone() && _timer.totalTime() < limit);
+        } while (!isDone() && _timer.total() < limit);
         _logger.log("# " + progress());
     }
     

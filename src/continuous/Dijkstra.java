@@ -11,7 +11,6 @@ import shared.Planet;
 import shared.Timer;
 import bot.BaseBot;
 
-import compare.IScore;
 
 public class Dijkstra extends TimedWork {
 
@@ -25,9 +24,7 @@ public class Dijkstra extends TimedWork {
         _queue = new PriorityQueue<Node>(32, new Node.DataComparator());
     }
 
-    public void calculate(Planet target, 
-                          Collection<Planet> sources, 
-                          IScore<Planet> scorer) {
+    public void calculate(Planet target, Collection<Planet> sources) {
         init(target, sources);
         while (!_queue.isEmpty()) {
             Node u = _queue.remove();

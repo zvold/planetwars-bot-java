@@ -38,15 +38,15 @@ public class GameStates {
     public static final String STATE6 = "P 14.425990 3.301771 0 41 1\n" +
                                         "P 19.466787 20.056168 0 35 5\n" +
                                         "P 3.760394 3.261307 0 35 5\n" +
-                                        "F 1 50 1 15 21 20\n" +
-                                        "F 2 50 2 15 5 4\n" +
+                                        "F 1 50 1 0 21 20\n" +
+                                        "F 2 50 2 0 5 4\n" +
                                         "go\n";
 
     public static final String STATE7 = "P 14.425990 3.301771 2 41 1\n" +
                                         "P 19.466787 20.056168 1 10 5\n" +
                                         "P 3.760394 3.261307 2 40 5\n" +
-                                        "F 1 50 1 15 21 19\n" +
-                                        "F 2 50 2 15 5 3\n" +
+                                        "F 1 50 1 0 21 19\n" +
+                                        "F 2 50 2 0 5 3\n" +
                                         "go\n";
 
     public static final String STATE8 = "P 14.425990 3.301771 0 41 1\n" +
@@ -88,6 +88,19 @@ public class GameStates {
                                          "F 2 1 42 0 10 4\n" +
                                          "go\n";
 
+    public static final String STATE_FUTURE = "P 14.425990 3.301771 0 10 1\n" +
+                                              "P 14.290286 8.040786 0 0 0\n" +
+                                              "F 1 10 42 0 10 3\n" +
+                                              "F 2 1 42 0 10 4\n" +
+                                              "go\n";
+
+    public static final String STATE_FUTURE2 = "P 14.425990 3.301771 0 10 1\n" +
+                                               "P 14.290286 8.040786 0 0 0\n" +
+                                               "F 1 10 42 0 10 3\n" +
+                                               "F 2 1 42 0 10 4\n" +
+                                               "F 1 2 42 0 10 5\n" +
+                                               "go\n";
+    
     public static final String STATE15 = "P 14.425990 3.301771 0 20 5\n" +
                                          "F 1 30 42 0 10 3\n" +
                                          "F 2 23 42 0 10 3\n" +

@@ -3,7 +3,9 @@ package shared;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 
 public class Planet {
@@ -14,14 +16,14 @@ public class Planet {
     int     _ships;
     int     _growth;
     Race    _owner;
-    Map<Integer, Integer> _distCache = new HashMap<Integer, Integer>();
+    Object  _data;
     
     @SuppressWarnings("unchecked")
     ArrayList<Fleet>[] _incoming = new ArrayList[] {null, // no neutral fleets
                                                     new ArrayList<Fleet>(),
                                                     new ArrayList<Fleet>()};
 
-    Map<Integer, ArrayList<FutureOrder>> _orders = new HashMap<Integer, ArrayList<FutureOrder>>();
+    public Map<Integer, ArrayList<FutureOrder>> _orders = new HashMap<Integer, ArrayList<FutureOrder>>();
     
     private Planet(Planet from) {
         _id = from._id;
@@ -29,12 +31,13 @@ public class Planet {
         _y = from._y;
         _ships = from._ships;
         _growth = from._growth;
-        _distCache = from._distCache;
         _owner = from._owner;
         
         _incoming[Race.ALLY.ordinal()] = new ArrayList<Fleet>(from.incoming(Race.ALLY));
         _incoming[Race.ENEMY.ordinal()] = new ArrayList<Fleet>(from.incoming(Race.ENEMY));
-        _orders = new HashMap<Integer, ArrayList<FutureOrder>>(from._orders);
+        _orders = new HashMap<Integer, ArrayList<FutureOrder>>(from._orders.size());
+        for (Integer key : from._orders.keySet())
+            _orders.put(key, new ArrayList<FutureOrder>(from._orders.get(key)));
     }
     
     public Planet(int id, Matcher m) {
@@ -72,14 +75,7 @@ public class Planet {
     }
     
     public int distance(Planet that) {
-        int dist;
-        if (_distCache.containsKey(that.id()))
-            dist = _distCache.get(that.id());
-        else {
-            dist = (int)Math.ceil(Math.sqrt(distSquared(that)));
-            _distCache.put(that.id(), dist);
-        }
-        return dist;
+        return DistanceCache.distance(this, that);
     }
 
     public void clearFleets() {
@@ -105,13 +101,13 @@ public class Planet {
     private boolean checkOwnFutureOrders() {
         for (Integer turn : _orders.keySet())
             for (FutureOrder order : _orders.get(turn))
-                if (order.from() != this && order.to() != this)
+                if (order.from() != id() && order.to() != id())
                     return false;
         return true;
     }
 
     public boolean hasFutureOrders(int turn) {
-        return _orders.containsKey(turn);
+        return _orders.containsKey(turn) && !_orders.get(turn).isEmpty();
     }
     
     public Collection<FutureOrder> futureOrders(int turn) {
@@ -183,4 +179,71 @@ public class Planet {
         return !_orders.isEmpty();
     }
 
+    public void advanceFleets() {
+        advanceFleets(Race.ALLY);
+        advanceFleets(Race.ENEMY);
+    }
+
+    private void advanceFleets(Race owner) {
+        if (incoming(owner).isEmpty())
+            return;
+        ArrayList<Fleet> newIncoming = new ArrayList<Fleet>();
+        for (Fleet fleet : incoming(owner)) {
+            Fleet newFleet = fleet.getAdvanced();
+            if (newFleet != null)
+                newIncoming.add(newFleet);
+        }
+        _incoming[owner.ordinal()] = newIncoming;
+    }
+
+    public <K> void setData(K data) {
+        _data = data;
+    }
+    
+    @SuppressWarnings("unchecked")
+    public <K> K data() {
+        return (K)_data;
+    }
+
+    public void removeOutgoingFutureOrders() {
+        for (Integer key : _orders.keySet()) {
+            Set<FutureOrder> toRemove = new HashSet<FutureOrder>();
+            for (FutureOrder order : _orders.get(key))
+                if (order.from() == id())
+                    toRemove.add(order);
+            _orders.get(key).removeAll(toRemove);
+        }
+    }
+    
+    public boolean deepEquals(Planet that) {
+        boolean ret = _x == that._x && _y == that._y &&
+                      _ships == that._ships && _owner == that._owner &&
+                      _growth == that._growth && _id == that._id;
+        if (!ret)
+            return ret;
+
+        ret = ret && _incoming[Race.ALLY.ordinal() ].equals(that._incoming[Race.ALLY.ordinal() ]);
+        ret = ret && _incoming[Race.ENEMY.ordinal()].equals(that._incoming[Race.ENEMY.ordinal()]);
+        if (!ret)
+            return ret;
+        
+        return _orders.equals(that._orders);
+    }
+
+    public FutureOrder removeFutureOrder(FutureOrder order) {
+        FutureOrder found = null;
+        int turnFound = -1;
+        for (Integer turn : _orders.keySet()) {
+            for (FutureOrder o : _orders.get(turn))
+                if (o.id() == order.id()) {
+                    found = o;
+                    turnFound = turn;
+                    break;
+                }
+        }
+        assert(found != null) : "must have";
+        futureOrders(turnFound).remove(found);
+        return found;
+    }
+    
 }

@@ -6,7 +6,7 @@ import java.util.regex.Pattern;
 
 public class Parser {
 
-    public enum Kind { PLANET, FLEET, NONE }
+    public static enum Kind { PLANET, FLEET, NONE }
 
     //                                                     P    x        y     owner  ships  growth
     static final Pattern _planetPattern = Pattern.compile("P ([^ #]+) ([^ #]+) (\\d+) (\\d+) (\\d+)");
@@ -14,30 +14,19 @@ public class Parser {
     //                                                    F owner  ships   src     dst  turns  turnsRem
     static final Pattern _fleetPattern = Pattern.compile("F (\\d+) (\\d+) (\\d+) (\\d+) (\\d+) (\\d+)");
     
-    String  _state;
-    int     _start;
-    int     _end;
-    Matcher _planetMatcher;
-    Matcher _fleetMatcher;
-    Kind    _kind = Kind.NONE;
-    int     _planetId;
-    int     _fleetId;
+    static String  _state;
+    static int     _start;
+    static int     _end;
+    static Matcher _planetMatcher;
+    static Matcher _fleetMatcher;
+    static Kind    _kind = Kind.NONE;
+    static int     _planetId;
+    static int     _fleetId;
     
-    public Parser(String from) { 
-        _state = from;
-        _start = 0;
-        _end = _state.indexOf('\n');
-        if (_end == -1)
-            _end = _state.length();
-        
-        _planetMatcher = _planetPattern.matcher(_state);
-        _planetMatcher.region(_start, _end);
-        
-        _fleetMatcher = _fleetPattern.matcher(_state);
-        _fleetMatcher.region(_start, _end);
+    private Parser() { 
     }
 
-    public boolean hasNext() {
+    public static boolean hasNext() {
         if (_start >= _state.length())
             return false;
 
@@ -56,7 +45,7 @@ public class Parser {
         return true;
     }
     
-    private void shiftMatchers() {
+    private static void shiftMatchers() {
         _start = (_end == _state.length()) ? _end : _end + 1;
         _end = _state.indexOf('\n', _start);
         _end = _end == -1 ? _state.length() : _end;
@@ -65,7 +54,7 @@ public class Parser {
         _fleetMatcher.region(_start, _end);
     }
     
-    public Object next() {
+    public static Object next() {
         Object ret = null;
         switch (_kind) {
             case FLEET:
@@ -81,15 +70,15 @@ public class Parser {
         return ret;
     }
 
-    public Kind kind() {
+    public static Kind kind() {
         return _kind;
     }
 
-    public Planet updatePlanet(ArrayList<Planet> _planets) {
+    public static Planet updatePlanet(ArrayList<Planet> _planets) {
         Planet planet;
         if (_planetId < _planets.size()) {
             planet = _planets.get(_planetId);
-            assert(planet != null) : "must have this fleet";
+            assert(planet != null) : "must have this planet";
             planet.update(_planetMatcher);
         } else {
             planet = new Planet(_planetId, _planetMatcher);
@@ -100,22 +89,7 @@ public class Parser {
         return planet;
     }
 
-    public Fleet updateFleet(ArrayList<Fleet> _fleets) {
-        Fleet fleet;
-        if (_fleetId < _fleets.size()) {
-            fleet = _fleets.get(_fleetId);
-            assert(fleet != null) : "must have this fleet";
-            fleet.update(_fleetMatcher);
-        } else {
-            fleet = new Fleet(_fleetId, _fleetMatcher);
-            _fleets.add(fleet);
-        }
-        _fleetId++;
-        shiftMatchers();
-        return fleet;
-    }
-    
-    public void setSingleLine(String line) {
+    public static void setSingleLine(String line) {
         _state = line;
         _start = 0;
         _end = line.length();
@@ -123,13 +97,28 @@ public class Parser {
         _fleetMatcher = _fleetPattern.matcher(line);
     }
     
-    public void reset() {
+    public static void reset() {
         _planetId = 0;
         _fleetId = 0;
     }
     
-    public void discard() {
+    public static void discard() {
         shiftMatchers();
+    }
+
+    public static void init(String from) {
+        reset();
+        _state = from;
+        _start = 0;
+        _end = _state.indexOf('\n');
+        if (_end == -1)
+            _end = _state.length();
+        
+        _planetMatcher = _planetPattern.matcher(_state);
+        _planetMatcher.region(_start, _end);
+        
+        _fleetMatcher = _fleetPattern.matcher(_state);
+        _fleetMatcher.region(_start, _end);
     }
     
 }

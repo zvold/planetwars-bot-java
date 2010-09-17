@@ -3,7 +3,6 @@ package bot;
 import java.util.ArrayList;
 import java.util.List;
 
-import shared.Fleet;
 import shared.Planet;
 import shared.Race;
 import shared.Utils;
@@ -11,10 +10,13 @@ import simulate.FirstLoseRecorder;
 import simulate.LastLoseRecorder;
 import simulate.MinShipsListener;
 import simulate.OwnerChangeListener;
+import simulate.OwnerChangeRecordListener;
 import simulate.Simulator;
+import bot.algorithms.Pressure;
 import continuous.Adjacency;
+import filters.PlanetFilter;
 
-public abstract class SimulatorBot extends BaseBot  implements OwnerChangeListener {
+public abstract class SimulatorBot extends BaseBot {
 
     public abstract class Algorithm {
         SimulatorBot _bot;
@@ -40,16 +42,16 @@ public abstract class SimulatorBot extends BaseBot  implements OwnerChangeListen
     
     public static final int TURNS_PREDICT = 50;
     
-    boolean                     _ownerChanged;
-    public Simulator             _sim;
-    public LastLoseRecorder             _lastLostListener;
-    public LastLoseRecorder             _lastN2ELostListener;
-    public FirstLoseRecorder             _firstA2ELostListener;
-    public MinShipsListener             _minShipsListener;
-    public Adjacency                     _adj;
+    public OwnerChangeListener  _ownerListener;
+    public Simulator            _sim;
+    public LastLoseRecorder     _lastLostListener;
+    public LastLoseRecorder     _lastN2ELostListener;
+    public FirstLoseRecorder    _firstA2ELostListener;
+    public MinShipsListener     _minShipsListener;
+    public Adjacency            _adj;
 
     public SimulatorBot() {
-        _sim = new Simulator();
+        _sim = new Simulator(_game);
         
         // listener for *->enemy ownership changes
         _lastLostListener = new LastLoseRecorder(Race.ENEMY);
@@ -67,7 +69,9 @@ public abstract class SimulatorBot extends BaseBot  implements OwnerChangeListen
         _minShipsListener = new MinShipsListener();
         _sim.addListener(_minShipsListener);
         
-        _sim.addListener(this);
+        // owner change listener
+        _ownerListener = new OwnerChangeRecordListener();
+        _sim.addListener(_ownerListener);
     }
     
     public void doTurn() {
@@ -78,43 +82,30 @@ public abstract class SimulatorBot extends BaseBot  implements OwnerChangeListen
         _adj.doWork(Utils.timeout() / 2);
     }
     
-    // 
-    // OwnerChangeListener interface methods
-    //
-    
-    @Override
-    public void ownerChanged(int turn, Race fromRace, int fromShips, Race toRace, int toShips) {
-        _ownerChanged = true;
-    }
-
-    @Override
-    public void reset() {
-        _ownerChanged = false;
-    }
-
-    @Override
-    public int turn() {
-        return 0;
-    }
-
     public int shipsAvailable(Planet planet, Race owner) {
         _sim.simulate(planet, TURNS_PREDICT);
-        if (_ownerChanged)
+        if (_ownerListener.changed())
             return 0;
         return _minShipsListener.ships(owner);
     }
 
     public int shipsAvailableSafe(Planet planet, Race owner) {
-        Race other = (owner == Race.ALLY ? Race.ENEMY : Race.ALLY);
-        Planet closest = _adj.getNearestNeighbor(planet, other);
-        if (closest == null)
-            return shipsAvailable(planet, owner);
-        Planet copy = planet.deepCopy();
-        copy.addIncomingFleet(new Fleet(other, closest.ships(), closest, planet));
-        _sim.simulate(copy, TURNS_PREDICT);
-        if (_ownerChanged)
-            return 0;
-        return _minShipsListener.ships(owner);
+        Pressure pressure = new Pressure(this, planet, owner);
+        pressure.execute();
+        //System.err.println("# pressure for " + planet + " predicts " + pressure.shipsAvail() + " ships");
+        
+        int shipsAvail = pressure.shipsAvail();
+        int iter = 1;
+        do {
+            shipsAvail /= iter;
+            pressure = new Pressure(this, planet, owner);
+            pressure.execute(shipsAvail);
+            iter <<= 1;
+        } while (iter <= 2 && !pressure.canHold());
+
+        if (pressure.canHold() && iter != 1)
+            log("# couldn't hold " + planet + ", decreased by " + iter + "x");
+        return pressure.canHold() ? shipsAvail : 0;
     }
 
     public List<Planet> selectOwnerToSum(Race owner, Planet target,
@@ -135,14 +126,15 @@ public abstract class SimulatorBot extends BaseBot  implements OwnerChangeListen
         return ret;
     }
 
-    public List<Planet> selectCloserThan(Race owner, Planet target, int distance) {
-        List<Planet> ret = new ArrayList<Planet>();
-        for (Planet planet : _adj.neighbors(target)) {
-            if (planet.distance(target) > distance)
-                break;
-            if (planet.owner() == owner)
-                ret.add(planet);
-        }
+    public List<Planet> selectCloserThan(final Race owner, final Planet target, final int distance) {
+        List<Planet> ret = new PlanetFilter(_adj.neighbors(target)) {
+            @Override
+            public boolean filter(Planet planet) {
+                if (planet.distance(target) > distance)
+                    return false;
+                return (planet.owner() == owner);
+            }
+        }.select(); 
         return ret;
     }
 
@@ -157,9 +149,9 @@ public abstract class SimulatorBot extends BaseBot  implements OwnerChangeListen
         return ret;
     }
 
-    public int sumFutureShipsTarget(Planet target, ArrayList<Planet> planets, int turns) {
+    public int sumFutureShipsTarget(Planet target, List<Planet> enemyNeigh, int turns) {
         int ret = 0;
-        for (Planet planet : planets) {
+        for (Planet planet : enemyNeigh) {
             assert(planet.owner() != Race.NEUTRAL) : "no neutrals";
             Planet future = _sim.simulate(planet, turns - planet.distance(target));
             if (future.owner() == planet.owner())
@@ -168,7 +160,7 @@ public abstract class SimulatorBot extends BaseBot  implements OwnerChangeListen
         return ret;
     }
     
-    public int getFurthest(Planet target, ArrayList<Planet> planets) {
+    public int getFurthest(Planet target, List<Planet> planets) {
         int ret = 0;
         for (Planet planet : planets)
             if (planet.distance(target) > ret)
