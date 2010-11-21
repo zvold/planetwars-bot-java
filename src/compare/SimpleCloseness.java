@@ -21,11 +21,10 @@ public class SimpleCloseness implements IScore<Planet> {
     public double score(Planet target) {
         double score = 0;
         for (Planet planet : _planets) {
-            if (planet == target)
-                continue;
-            score += (double)planet.ships() / (double)planet.distance(target);
+            double distance = (planet == target) ? 1.0d : (double)planet.distance(target);
+            score += (double)planet.ships() / distance;
         }
-        score *= 100.0d;
+        score *= 10000.0d;
         
         return -score;
     }

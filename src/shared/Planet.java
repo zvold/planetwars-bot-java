@@ -4,9 +4,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
+
+import continuous.Adjacency;
+
+import filters.OwnerFilter;
+import filters.PlanetFilter;
 
 public class Planet {
 
@@ -24,6 +30,19 @@ public class Planet {
                                                     new ArrayList<Fleet>()};
 
     public Map<Integer, ArrayList<FutureOrder>> _orders = new HashMap<Integer, ArrayList<FutureOrder>>();
+    
+    // special constructor, should be used by Visialiser only
+    public Planet(double x, double y, Race owner) {
+        _id = 31;
+        _x = x;
+        _y = y;
+        _growth = 1;
+        _ships = 1;
+        _owner = owner;
+        _data = null;
+    }
+    public void setX(double x) {_x = x;}
+    public void setY(double y) {_y = y;}
     
     private Planet(Planet from) {
         _id = from._id;
@@ -108,6 +127,10 @@ public class Planet {
 
     public boolean hasFutureOrders(int turn) {
         return _orders.containsKey(turn) && !_orders.get(turn).isEmpty();
+    }
+    
+    public Collection<Integer> futureTurns() {
+        return _orders.keySet();
     }
     
     public Collection<FutureOrder> futureOrders(int turn) {
@@ -244,6 +267,42 @@ public class Planet {
         assert(found != null) : "must have";
         futureOrders(turnFound).remove(found);
         return found;
+    }
+    
+    public List<Planet> getNearestInRadius(List<Planet> neighbors, Race owner, final int radius) {
+        List<Planet> ret = new ArrayList<Planet>();
+        List<Planet> allies = new OwnerFilter(neighbors, owner).select();
+
+        if (allies.isEmpty())
+            return ret;
+        final Planet source = allies.remove(0);
+        final int distance = this.distance(source);
+        final Planet target = this;
+        ret.add(source);
+        ret.addAll(new PlanetFilter(allies) {
+            @Override
+            public boolean filter(Planet planet) {
+                assert (planet.distance(target) >= distance) : "check sorting"
+                        + planet.distance(target) + " >= " + distance;
+                return planet.distance(target) < 15 ||
+                       (Math.abs(planet.distance(target) - distance) < radius);
+            }
+        }.select());
+        assert (!ret.contains(target)) : "target doesn't belong to neighbors set";
+        return ret;
+    }    
+
+    public List<Planet> selectCloserThan(final Race owner, final Adjacency adj, final int distance) {
+        final Planet target = this;
+        List<Planet> ret = new PlanetFilter(adj.neighbors(target)) {
+            @Override
+            public boolean filter(Planet planet) {
+                if (planet.distance(target) > distance)
+                    return false;
+                return (planet.owner() == owner);
+            }
+        }.select(); 
+        return ret;
     }
     
 }

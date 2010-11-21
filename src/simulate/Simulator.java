@@ -28,6 +28,7 @@ public class Simulator {
     Set<EndTurnListener>        _endTurnListeners;
     ArrayList<Fleet>            _arriving = new ArrayList<Fleet>(3);
     boolean                     _failTolerant;
+    boolean                     _wereCleaned;
     Game                        _game;
     
     public Simulator(Game game) {
@@ -36,6 +37,7 @@ public class Simulator {
     
     public Planet simulate(Planet planet, int turns, boolean failTolerant) {
         _failTolerant = failTolerant;
+        _wereCleaned = false;
         Planet ret = simulate(planet, turns);
         _failTolerant = false;
         return ret;
@@ -117,6 +119,7 @@ public class Simulator {
                             assert(reportInvalidFutureOrder(orig, copy, order)) : 
                                 "can't have an invalid future order";
                         else {
+                            _wereCleaned = true;
                             reportFailingOrder(order);
                             toRemoveFailing.add(order);
                         }
@@ -231,5 +234,9 @@ public class Simulator {
     public void clearEndTurnListeners() {
         if (_endTurnListeners != null)
             _endTurnListeners.clear();
+    }
+
+    public boolean wereCleaned() {
+        return _wereCleaned;
     }
 }

@@ -104,8 +104,14 @@ public class TestingBot extends SimulatorBot {
 
     public void cleanupInvalidFutureOrders() {
         log("# Future orders cleanup");
-        for (Planet planet : _game.planets())
-            _sim.simulate(planet, SimulatorBot.TURNS_PREDICT, true);
+        boolean wereCleaned = false;
+        do {
+            wereCleaned = false;
+            for (Planet planet : _game.planets()) {
+                _sim.simulate(planet, SimulatorBot.TURNS_PREDICT, true);
+                wereCleaned |= _sim.wereCleaned();
+            }
+        } while (wereCleaned);
     }
     
     public void carryOutFutureOrders() {

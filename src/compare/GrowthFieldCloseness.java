@@ -4,11 +4,11 @@ import java.util.Collection;
 
 import shared.Planet;
 
-public class SimpleGrowthCloseness implements IScore<Planet> {
+public class GrowthFieldCloseness implements IScore<Planet> {
 
     Collection<Planet> _planets;
 
-    public SimpleGrowthCloseness(Collection<Planet> planets) {
+    public GrowthFieldCloseness(Collection<Planet> planets) {
         _planets = planets;
     }
 
@@ -21,13 +21,12 @@ public class SimpleGrowthCloseness implements IScore<Planet> {
     public double score(Planet target) {
         double score = 0;
         for (Planet planet : _planets) {
-            double distance = (planet == target) ? 1.0d : (double)planet.distance(target);
-            score += (double)planet.ships() / distance;
+            double distance = (planet == target) ? 1.0d : (double)planet.distance(target);            
+            score -= (double)planet.growth() / distance;
         }
-        score *= target.growth();
-        score *= 10000.0d;
+        score *= 100.0d;
         
-        return -score;
+        return score;
     }
 
 }

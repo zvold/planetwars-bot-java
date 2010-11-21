@@ -7,12 +7,18 @@ import java.util.Set;
 
 import shared.Planet;
 
+import compare.GrowthFieldCloseness;
+import compare.IScore;
+
 public class Knapsack {
 
     static Data[][] _data;
     
     public static Collection<Planet> solve(Planet home, List<Planet> planets, int W) {
         int num = planets.size();
+        
+        IScore<Planet> scorer = new GrowthFieldCloseness(planets);
+        
         // initialize
         _data = new Data[W + 1][num + 1];
         for (int i=0; i<W+1; i++)
@@ -29,7 +35,7 @@ public class Knapsack {
                     // planet weight is more than the current weight limit
                     _data[w][i] = new Data(_data[w][i-1]);
                 } else {
-                    int value = (int)(1000.0d * (double)planet.growth() / (double)home.distance(planet));
+                    int value = - (int)(100.0d * scorer.score(planet));
                     // planet weight is less or equal to the current weight limit
                     if (_data[w][i - 1]._value >= _data[w - pw][i - 1]._value + value) {
                         _data[w][i] = new Data(_data[w][i - 1]);
